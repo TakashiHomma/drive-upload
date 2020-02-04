@@ -1,0 +1,109 @@
+<html>
+  <head>
+    <title>test</title>
+  <body>
+    <div id="authorize-div" style="display: none">
+      <span>Authorize access to Drive API</span>
+      <button id="authorize-button" onclick="authClick(event)">
+        Authorize
+      </button>
+    </div>
+    <input type="file" id="file">
+  </body>    
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script type="text/javascript">
+    var CLIENT_ID = '907111883642-sdrqpctnhhsn2mj3lahvtf85v4q178r7.apps.googleusercontent.com';
+ 
+    var SCOPES = ['https://www.googleapis.com/auth/drive'];
+     
+    function checkAuth() {
+        gapi.auth.authorize({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            immediate: true,
+        },
+        authResult
+        );
+    }
+ 
+    function authResult(authResult) {
+        var authorizeDiv = document.getElementById('authorize-div');
+        if (authResult && !authResult.error) {
+            authorizeDiv.style.display = 'none';
+            loadAPI();
+        }
+        else {
+            authorizeDiv.style.display = 'inline';
+        }
+    }
+    function loadAPI() {
+        gapi.client.load('drive', 'v3', function(){});
+    }
+ 
+    function authClick(event) {
+        gapi.auth.authorize({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            immediate: false,
+        },
+        authResult
+        );
+        return false;
+    }
+ 
+    inputFile = document.getElementById('file');
+    inputFile.addEventListener('change', fileChange, false);
+    function fileChange(ev) {
+ 
+        var target = ev.target;
+        var file = target.files[0];
+        var filename = file.name
+        var contentType = file.type;
+        var contentLength = file.size;
+ 
+        var CRLF = "\r\n"
+        var boundary = "314159265358979323846";
+ 
+        var reader = new FileReader();
+        reader.readAsBinaryString(file);
+        reader.onload = function (e) {
+ 
+            var metadata = {
+                'name': filename,
+                'mimeType': contentType
+            };
+ 
+            var base64Data = btoa(reader.result);
+ 
+            var multipartRequestBody
+                = '--' + boundary                     + CRLF
+                + 'Content-Type: application/json'    + CRLF
+                + CRLF
+                + JSON.stringify(metadata)            + CRLF
+                + '--' + boundary                     + CRLF
+                + 'Content-Type: ' + contentType      + CRLF
+                + 'Content-Transfer-Encoding: base64' + CRLF
+                + CRLF
+                + base64Data                          + CRLF
+                + '--' + boundary + '--';
+ 
+            var request = gapi.client.request({
+                'path': '/upload/drive/v3/files',
+                'method': 'POST',
+                'params': {'uploadType': 'multipart'},
+                'headers': {
+                    'Content-Type': 'multipart/mixed; boundary="' + boundary + '"'
+                },
+                'body': multipartRequestBody});
+            request.then(function(file){
+                alert(file.result.name + "のアップロードが完了しました。");
+                inputFile.value = "";
+            },function(reason){
+                alert(reason)
+            });
+        }
+    }
+    </script>
+    <script src="https://apis.google.com/js/client.js?onload=checkAuth"></script>
+  </head>
+</html>
